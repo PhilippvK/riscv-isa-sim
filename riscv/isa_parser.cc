@@ -252,6 +252,8 @@ isa_parser_t::isa_parser_t(const char* str, const char *priv)
         extension_table[EXT_XZBR] = true;
       } else if (ext_str == "xzbt") {
         extension_table[EXT_XZBT] = true;
+      } else if (ext_str == "xcorev") {
+        extension_table[EXT_XCOREV] = true;
       } else if (ext_str.size() == 1) {
         bad_isa_string(str, "single 'X' is not a proper name");
       } else if (ext_str != "xdummy") {
