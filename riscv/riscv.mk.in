@@ -1314,6 +1314,17 @@ riscv_insn_ext_zicond = \
 
 riscv_insn_ext_xcorev = \
          cv_mac \
+         cv_lh \
+         cv_lw \
+         cv_sh \
+         cv_sw \
+         cv_sw_imm_inc \
+         cv_addn \
+         cv_min \
+         cv_minu \
+         cv_max \
+         cv_maxu \
+         cv_extbs \
 
 riscv_insn_list = \
 	$(riscv_insn_ext_a) \
