@@ -59,28 +59,23 @@ public:
   proc->state.log_mem_read.push_back(std::make_tuple(addr, 0, size));
 #endif
 
-  template<typename T>
-  T ALWAYS_INLINE load(reg_t addr, bool require_alignment = false, uint32_t xlate_flags = 0) {
-    target_endian<T> res;
-    reg_t vpn = addr >> PGSHIFT;
-    bool aligned = (addr & (sizeof(T) - 1)) == 0;
-    bool tlb_hit = tlb_load_tag[vpn % TLB_ENTRIES] == vpn;
-
-    if (likely(xlate_flags == 0 && aligned && tlb_hit)) {
-      res = *(target_endian<T>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr);
-    } else {
-      load_slow_path(addr, sizeof(T), (uint8_t*)&res, xlate_flags, require_alignment);
-    }
-
-    if (proc)
-      READ_MEM(addr, sizeof(T));
-
-    return from_target(res);
-  }
-
   // template for functions that load an aligned value from memory
   #define load_func(type, prefix, xlate_flags) \
-    type##_t ALWAYS_INLINE prefix##_##type(reg_t addr, bool require_alignment = false) { return load<type##_t>(addr, require_alignment, xlate_flags); }
+    type##_t ALWAYS_INLINE prefix##_##type(reg_t addr, bool require_alignment = false) { \
+      reg_t vpn = addr >> PGSHIFT; \
+      size_t size = sizeof(type##_t); \
+      bool aligned = (addr & (size - 1)) == 0; \
+      bool tlb_hit = tlb_load_tag[vpn % TLB_ENTRIES] == vpn; \
+      if (likely((xlate_flags) == 0 && aligned && tlb_hit)) { \
+        if (proc) READ_MEM(addr, size); \
+        return from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr)); \
+      } else { \
+        target_endian<type##_t> res; \
+        load_slow_path(addr, sizeof(type##_t), (uint8_t*)&res, (xlate_flags), require_alignment); \
+        if (proc) READ_MEM(addr, size); \
+        return from_target(res); \
+      } \
+    }
 
   // load value from memory at aligned address; zero extend to register width
   load_func(uint8, load, 0)
@@ -115,26 +110,24 @@ public:
   proc->state.log_mem_write.push_back(std::make_tuple(addr, val, size));
 #endif
 
-  template<typename T>
-  void ALWAYS_INLINE store(reg_t addr, T val, uint32_t xlate_flags = 0) {
-    reg_t vpn = addr >> PGSHIFT;
-    bool aligned = (addr & (sizeof(T) - 1)) == 0;
-    bool tlb_hit = tlb_store_tag[vpn % TLB_ENTRIES] == vpn;
-
-    if (xlate_flags == 0 && likely(aligned && tlb_hit)) {
-      *(target_endian<T>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr) = to_target(val);
-    } else {
-      target_endian<T> target_val = to_target(val);
-      store_slow_path(addr, sizeof(T), (const uint8_t*)&target_val, xlate_flags, true, false);
-    }
-
-    if (proc)
-      WRITE_MEM(addr, val, sizeof(T));
-  }
-
   // template for functions that store an aligned value to memory
   #define store_func(type, prefix, xlate_flags) \
-    void ALWAYS_INLINE prefix##_##type(reg_t addr, type##_t val) { store(addr, val, xlate_flags); }
+    void ALWAYS_INLINE prefix##_##type(reg_t addr, type##_t val, bool actually_store=true, bool require_alignment=false) { \
+      reg_t vpn = addr >> PGSHIFT; \
+      size_t size = sizeof(type##_t); \
+      bool aligned = (addr & (size - 1)) == 0; \
+      bool tlb_hit = tlb_store_tag[vpn % TLB_ENTRIES] == vpn; \
+      if ((xlate_flags) == 0 && likely(aligned && tlb_hit)) { \
+        if (actually_store) { \
+          if (proc) WRITE_MEM(addr, val, size); \
+          *(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr) = to_target(val); \
+        } \
+      } else { \
+        target_endian<type##_t> target_val = to_target(val); \
+        store_slow_path(addr, sizeof(type##_t), (const uint8_t*)&target_val, (xlate_flags), actually_store, require_alignment); \
+        if (actually_store && proc) WRITE_MEM(addr, val, size); \
+      } \
+  }
 
   // AMO/Zicbom faults should be reported as store faults
   #define convert_load_traps_to_store_traps(BODY) \
@@ -156,8 +149,8 @@ public:
     template<typename op> \
     type##_t amo_##type(reg_t addr, op f) { \
       convert_load_traps_to_store_traps({ \
-        store_slow_path(addr, sizeof(type##_t), nullptr, 0, false, true); \
-        auto lhs = load_##type(addr); \
+        store_##type(addr, 0, false, true); \
+        auto lhs = load_##type(addr, true); \
         store_##type(addr, f(lhs)); \
         return lhs; \
       }) \
@@ -188,15 +181,12 @@ public:
   store_func(uint32, store, 0)
   store_func(uint64, store, 0)
 
-  //#// // store value to guest memory at aligned address
-  //#// store_func(uint8, guest_store, RISCV_XLATE_VIRT)
-  //#// store_func(uint16, guest_store, RISCV_XLATE_VIRT)
-  //#// store_func(uint32, guest_store, RISCV_XLATE_VIRT)
-  //#// store_func(uint64, guest_store, RISCV_XLATE_VIRT)
+  // store value to guest memory at aligned address
+  store_func(uint8, guest_store, RISCV_XLATE_VIRT)
+  store_func(uint16, guest_store, RISCV_XLATE_VIRT)
+  store_func(uint32, guest_store, RISCV_XLATE_VIRT)
+  store_func(uint64, guest_store, RISCV_XLATE_VIRT)
 
-  //#// // perform an atomic memory operation at an aligned address
-  //#// amo_func(uint32)
-  //#// amo_func(uint64)
   // perform an atomic memory operation at an aligned address
   amo_func(uint32)
   amo_func(uint64)
