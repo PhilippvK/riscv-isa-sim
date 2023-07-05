@@ -152,15 +152,16 @@ public:
     }
 
   // template for functions that perform an atomic memory operation
-  template<typename T, typename op>
-  T amo(reg_t addr, op f) {
-    convert_load_traps_to_store_traps({
-      store_slow_path(addr, sizeof(T), nullptr, 0, false, true);
-      auto lhs = load<T>(addr);
-      store<T>(addr, f(lhs));
-      return lhs;
-    })
-  }
+  #define amo_func(type) \
+    template<typename op> \
+    type##_t amo_##type(reg_t addr, op f) { \
+      convert_load_traps_to_store_traps({ \
+        store_slow_path(addr, sizeof(type##_t), nullptr, 0, false, true); \
+        auto lhs = load_##type(addr); \
+        store_##type(addr, f(lhs)); \
+        return lhs; \
+      }) \
+    }
 
   void store_float128(reg_t addr, float128_t val)
   {
@@ -196,6 +197,9 @@ public:
   //#// // perform an atomic memory operation at an aligned address
   //#// amo_func(uint32)
   //#// amo_func(uint64)
+  // perform an atomic memory operation at an aligned address
+  amo_func(uint32)
+  amo_func(uint64)
 
   void cbo_zero(reg_t addr) {
     auto base = addr & ~(blocksz - 1);
