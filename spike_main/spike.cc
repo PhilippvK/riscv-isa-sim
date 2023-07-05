@@ -430,11 +430,8 @@ int main(int argc, char** argv)
   });
   parser.option(0, "blocksz", 1, [&](const char* s){
     blocksz = strtoull(s, 0, 0);
-    const unsigned min_blocksz = 16;
-    const unsigned max_blocksz = PGSIZE;
-    if (blocksz < min_blocksz || blocksz > max_blocksz || ((blocksz & (blocksz - 1))) != 0) {
-      fprintf(stderr, "--blocksz must be a power of 2 between %u and %u\n",
-        min_blocksz, max_blocksz);
+    if (((blocksz & (blocksz - 1))) != 0) {
+      fprintf(stderr, "--blocksz should be power of 2\n");
       exit(-1);
     }
   });
