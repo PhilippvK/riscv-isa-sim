@@ -46,7 +46,7 @@ private:
   std::map<reg_t, reg_t> alloc_cache;
   std::vector<std::pair<reg_t, reg_t >> addr_tbl;
 public:
-  mmu_t(simif_t* sim, memif_endianness_t endianness, processor_t* proc);
+  mmu_t(simif_t* sim, processor_t* proc);
   ~mmu_t();
 
 #define RISCV_XLATE_VIRT      (1U << 0)
@@ -311,6 +311,15 @@ public:
     return 1;
 #else
     return 0;
+#endif
+  }
+
+  void set_target_big_endian(bool enable)
+  {
+#ifdef RISCV_ENABLE_DUAL_ENDIAN
+    target_big_endian = enable;
+#else
+    assert(enable == false);
 #endif
   }
 

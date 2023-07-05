@@ -61,7 +61,6 @@ public:
         const char *default_bootargs,
         const char *default_isa, const char *default_priv,
         const char *default_varch,
-        const memif_endianness_t default_endianness,
         const reg_t default_pmpregions,
         const std::vector<mem_cfg_t> &default_mem_layout,
         const std::vector<int> default_hartids,
@@ -71,7 +70,6 @@ public:
       isa(default_isa),
       priv(default_priv),
       varch(default_varch),
-      endianness(default_endianness),
       pmpregions(default_pmpregions),
       mem_layout(default_mem_layout),
       hartids(default_hartids),
@@ -84,7 +82,6 @@ public:
   cfg_arg_t<const char *>            isa;
   cfg_arg_t<const char *>            priv;
   cfg_arg_t<const char *>            varch;
-  memif_endianness_t                 endianness;
   reg_t                              pmpregions;
   cfg_arg_t<std::vector<mem_cfg_t>>  mem_layout;
   std::optional<reg_t>               start_pc;
