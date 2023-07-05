@@ -448,22 +448,6 @@ void sim_t::set_target_endianness(memif_endianness_t endianness)
 #endif
 }
 
-void sim_t::set_target_endianness(memif_endianness_t endianness)
-{
-#ifdef RISCV_ENABLE_DUAL_ENDIAN
-  assert(endianness == memif_endianness_little || endianness == memif_endianness_big);
-
-  bool enable = endianness == memif_endianness_big;
-  debug_mmu->set_target_big_endian(enable);
-  for (size_t i = 0; i < procs.size(); i++) {
-    procs[i]->get_mmu()->set_target_big_endian(enable);
-    procs[i]->reset();
-  }
-#else
-  assert(endianness == memif_endianness_little);
-#endif
-}
-
 memif_endianness_t sim_t::get_target_endianness() const
 {
   return debug_mmu->is_target_big_endian()? memif_endianness_big : memif_endianness_little;
