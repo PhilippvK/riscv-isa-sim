@@ -102,6 +102,13 @@ riscv_gen_hdrs = \
 
 riscv_insn_ext_i = \
 	add \
+  keccak \
+  keccak_round_vreg \
+  custom3 \
+  custom4 \
+  custom5 \
+  custom6 \
+  custom7 \
 	addi \
 	addiw \
 	addw \
